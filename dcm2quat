@@ -1,0 +1,30 @@
+def dcm2quat(R):
+    """
+    Convert a batch of 3x3 rotation matrices to quaternions.
+
+    Parameters:
+    - R: numpy array, shape (batch_size, 3, 3), batch of rotation matrices
+
+    Returns:
+    - q: numpy array, shape (batch_size, 4), batch of quaternions in the format (w, x, y, z)
+    """
+
+    batch_size = R.shape[0]
+    q = np.empty((batch_size, 4))
+
+    tr = np.trace(R, axis1=1, axis2=2)
+    mask = tr > 0
+
+    S = np.empty(batch_size)
+    S[mask] = np.sqrt(tr[mask] + 1.0) * 2
+    S[~mask] = np.sqrt(np.maximum(0.0, 1.0 + R[~mask, 0, 0] - R[~mask, 1, 1] - R[~mask, 2, 2])) * 2
+
+    q[:, 0] = np.where(mask, 0.25 * S, (R[:, 2, 1] - R[:, 1, 2]) / np.maximum(S, np.finfo(float).eps))
+    q[:, 1] = np.where(mask, (R[:, 1, 2] - R[:, 2, 1]) / np.maximum(S, np.finfo(float).eps), 0.25 * S)
+    q[:, 2] = np.where(mask, (R[:, 0, 2] - R[:, 2, 0]) / np.maximum(S, np.finfo(float).eps), (R[:, 0, 1] + R[:, 1, 0]) / np.maximum(S, np.finfo(float).eps))
+    q[:, 3] = np.where(mask, (R[:, 2, 0] - R[:, 0, 2]) / np.maximum(S, np.finfo(float).eps), (R[:, 1, 0] - R[:, 0, 1]) / np.maximum(S, np.finfo(float).eps))
+
+    # Normalize the quaternions to unit length
+    q /= norm(q, axis=1, keepdims=True)
+
+    return q
